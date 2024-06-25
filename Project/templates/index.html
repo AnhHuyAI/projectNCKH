@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Job Evaluation Chat</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+</head>
+
+<body>
+    <div class="chat-container">
+        <div class="chat-box" id="chat-box"></div>
+        <div class="input-box">
+            <select id="industry-select" onchange="loadJobs()">
+                <option value="">Chọn ngành nghề</option>
+                {% for industry in industries %}
+                <option value="{{ industry }}">{{ industry }}</option>
+                {% endfor %}
+            </select>
+            <select id="job-select" style="display:none;">
+                <option value="" disabled selected hidden>Chọn công việc</option>
+            </select>
+            <input type="text" id="other-job" placeholder="Nhập công việc khác" style="display:none;">
+            <button onclick="sendMessage()">Gửi</button>
+        </div>
+    </div>
+
+    <script>
+        function loadJobs() {
+            const industrySelect = document.getElementById('industry-select');
+            const jobSelect = document.getElementById('job-select');
+            const otherJobInput = document.getElementById('other-job');
+            const industry = industrySelect.value;
+
+            if (industry === "Khác") {
+                jobSelect.style.display = 'none';
+                otherJobInput.style.display = 'block';
+                jobSelect.innerHTML = '';
+            } else {
+                fetch('/get_jobs', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/x-www-form-urlencoded',
+                        },
+                        body: 'industry=' + encodeURIComponent(industry),
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        jobSelect.style.display = 'block';
+                        otherJobInput.style.display = 'none';
+                        jobSelect.innerHTML = '<option value="" disabled selected hidden>Chọn công việc</option>';
+                        data.jobs.forEach(job => {
+                            const option = document.createElement('option');
+                            option.value = job;
+                            option.innerText = job;
+                            jobSelect.appendChild(option);
+                        });
+                    });
+            }
+        }
+
+        function sendMessage() {
+            const industrySelect = document.getElementById('industry-select');
+            const jobSelect = document.getElementById('job-select');
+            const otherJobInput = document.getElementById('other-job');
+            const industry = industrySelect.value;
+            const job = industry === "Khác" ? otherJobInput.value : jobSelect.value;
+
+            if (industry === "" || job === "") return;
+
+            const chatBox = document.getElementById('chat-box');
+            const userMessage = document.createElement('div');
+            userMessage.className = 'message user-message';
+            userMessage.innerText = `${industry} - ${job}`;
+            chatBox.appendChild(userMessage);
+
+            fetch('/evaluate', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                    },
+                    body: 'industry=' + encodeURIComponent(industry) + '&job=' + encodeURIComponent(job),
+                })
+                .then(response => response.json())
+                .then(data => {
+                    const botMessage = document.createElement('div');
+                    botMessage.className = 'message bot-message';
+                    botMessage.innerText = data.response_message;
+                    chatBox.appendChild(botMessage);
+                    chatBox.scrollTop = chatBox.scrollHeight;
+                });
+        }
+    </script>
+</body>
+
+</html>
